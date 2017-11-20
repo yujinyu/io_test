@@ -50,10 +50,8 @@ def whether_wait(clt):
 
 def rm_cntrs(clt):
     cntrs_list = clt.containers.list(all=True)
-
-
-for cid in cntrs_list:
-    cid.remove()
+    for cid in cntrs_list:
+        cid.remove()
 
 class Test:
     _type = ["fio", "sysbench", "iozone"]
