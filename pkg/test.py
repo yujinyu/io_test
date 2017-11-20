@@ -3,24 +3,36 @@ import time
 import docker
 from random import Random
 
+image = "iotest:allinone"
 
-def random_string(length=6):
+
+def random_string(llen=6):
     string = ""
     chars = "AaBbCDdEeFfGgHhJKkLMmNnPpQqRrSTtUuVvWwXxYy3456789"
     length = len(chars) - 1
     random = Random()
-    for l in range(length):
+    for l in range(llen):
         string += chars[random.randint(0, length)]
     return string
 
 
-def build_image(path2dockerfile, image, client=docker.from_env()):
+def build_image(path2dockerfile, img, client=docker.from_env()):
     try:
-        client.images.build(path=path2dockerfile, tag=image)
-        print("Build image Successfully!")
+        client.images.build(path=path2dockerfile, tag=img)
+        print("Build img Successfully!")
     except Exception as e:
-        print("Failed to build image!\n%s" % str(e))
+        print("Failed to build img!\n%s" % str(e))
         exit(-1)
+
+
+def docker_svc_stop():
+    if 0 == os.system("systemctl stop docker.service"):
+        os.system("umount -lf $(cat /proc/mounts | grep docker | awk '{print $2}')")
+        os.system("rm -rf /var/lib/docker/*")
+        return 0
+    else:
+        print("Failed to stop docker daemon")
+        return -1
 
 
 def mkfs_mnt(dev, fs, mntpoint):
@@ -69,34 +81,20 @@ class Test:
     # 11=pwritev/Re-pwritev, 12=preadv/Re-preadv
     _rw_mode = {_type[0]: ["write", "read"], _type[1]: ["seqwr", "seqrd"], _type[2]: ["0", "1"]}
 
-    def __init__(self, storage_device, fs_type, mount_point, dockerfile, result_dir):
+    def __init__(self, storage_device, fs_type, mount_point, result_dir, io_flag):
         self._client = docker.from_env()
         self._device = storage_device
         self._fs_type = fs_type
         self._mnt_point = mount_point
-        self._image = "filetest:%s" % fs_type
-        self._path2dockerfile = dockerfile
         self._result_directory = result_dir
+        self._io_flag = io_flag
+        self._saved_image = "%s.tar" % image.replace(":", "-")
 
-    def prepare(self):
+    def _pre_work(self):
+        docker_svc_stop()
         mkfs_mnt(self._device, self._fs_type, "/var/lib/docker")
         os.system("systemctl restart docker")
-        self._client = docker.from_env()
-        build_image(self._path2dockerfile, self._image, self._client)
-
-    def run(self):
-        for tool in self._type:
-            result_directory = os.path.join(self._result_directory, tool)
-            volume = {result_directory: self._mnt_point}
-            # os.system("mkdir  -p  %s"%result_directory)
-            if tool is "iozone":
-                parm1 = "0 -i 1 -I "
-                parm2 = "4k"
-                self._ex_test(tool, parm1, parm2, volume, 16, True)
-                continue
-            for rw_type in self._rw_mode[tool]:
-                res_file = os.path.join(self._mnt_point, "%s-%s-%s" % (self._fs_type, rw_type, random_string(8)))
-                print("%s\n%s\n" % (result_directory, res_file))
+        os.system("docker load -i %s" % os.path.join(os.getcwd(), "pkg", self._saved_image))
 
     def _ex_test(self, tools_type, parm1, parm2, vol, rng, spec=False):
         if not spec:
@@ -114,8 +112,40 @@ class Test:
     def _crt_run(self, tools_type, rng, parm1, parm2, volume):
         for j in range(1, rng + 1):
             res_file = os.path.join(self._mnt_point, "%s-%s-%s" % (self._fs_type, "r&w", random_string(8)))
-            cmd = "%s.sh %s %s %s" % (self._type[self._type.index(tools_type)], parm1, parm2, res_file)
-            self._client.create(image=self._image, command=cmd, auto_remove=True, volume=volume)
+            cmd = "./%s.sh %s %s %s" % (self._type[self._type.index(tools_type)], parm1, parm2, res_file)
+            print(cmd)
+            self._client.containers.create(image=image, command=cmd, volumes=volume, working_dir="/")
         cntrs_list = self._client.containers.list(all=True)
         for cid in cntrs_list:
             cid.start()
+
+    def start(self):
+        self._pre_work()
+        for tool in self._type:
+            print(tool+32*"%")
+            result_directory = os.path.join(self._result_directory, tool)
+            volume = {result_directory: self._mnt_point}
+            os.system("mkdir  -p  %s" % result_directory)
+            rw = self._rw_mode[self._type[self._type.index(tool)]]
+            parm2 = "4k"
+            if tool is "iozone":
+                parm1 = "%s -i %s" % (rw[0], rw[1])
+                if self._io_flag:
+                    parm1 = parm1 + " -I"
+                self._ex_test(tool, parm1, parm2, volume, 16, True)
+                continue
+            elif "fio":
+                for rw_type in self._rw_mode[tool]:
+                    print(rw_type + 16 * "#")
+                    parm1 = "%s -ioengine=sync" % rw_type
+                    if self._io_flag:
+                        parm1 = parm1 + " -direct=1"
+                    self._ex_test(tool, parm1, parm2, volume, 16, True)
+
+            else:  # sysbench
+                for rw_type in self._rw_mode[tool]:
+                    print(rw_type + 16 * "#")
+                    parm1 = "%s --file-io-mode=sync" % rw_type
+                    if self._io_flag:
+                        parm1 = parm1 + " --file-extra-flags=direct"
+                    self._ex_test(tool, parm1, parm2, volume, 16, True)
