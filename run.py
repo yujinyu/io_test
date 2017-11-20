@@ -15,7 +15,7 @@ def prepare(path2dockerfile):
 
 
 if __name__ == "__main__":
-    # prepare(os.path.join(os.getcwd(),"image_built"))
+    prepare(os.path.join(os.getcwd(),"image_built"))
     for fs in fs_type:
         print(fs+64*"*")
         io_test = Test(device, fs, "/mnt", result_dir, True)

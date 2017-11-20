@@ -21,7 +21,7 @@ def build_image(path2dockerfile, img, client=docker.from_env()):
         client.images.build(path=path2dockerfile, tag=img)
         print("Build img Successfully!")
     except Exception as e:
-        print("Failed to build img!\n%s" % str(e))
+        print("Failed to build image!\n%s" % str(e))
         exit(-1)
 
 
@@ -69,7 +69,7 @@ def rm_cntrs(clt):
 
 
 class Test:
-    _type = ["fio", "sysbench", "iozone"]
+    _type = ["iozone", "fio", "sysbench"]
 
     # rw_mode
     # fio: write , read
@@ -96,25 +96,27 @@ class Test:
         os.system("systemctl restart docker")
         os.system("docker load -i %s" % os.path.join(os.getcwd(), "pkg", self._saved_image))
 
-    def _ex_test(self, tools_type, parm1, parm2, vol, rng, spec=False):
+    def _ex_test(self, tools_type, rw, cmd, vol, rng, spec=False):
         if not spec:
             for i in range(1, rng):
-                self._crt_run(tools_type, i, parm1, parm2, vol)
+                self._crt_run(tools_type, rw, i, cmd, vol)
                 while whether_wait(self._client):
                     time.sleep(30)
                 rm_cntrs(self._client)
         else:
-            self._crt_run(tools_type, rng, parm1, parm2, vol)
+            self._crt_run(tools_type, rw, rng, cmd, vol)
             while whether_wait(self._client):
                 time.sleep(30)
             rm_cntrs(self._client)
 
-    def _crt_run(self, tools_type, rng, parm1, parm2, volume):
+    def _crt_run(self, tools_type, rw, rng, cmd, volume):
+        res_prefix = os.path.join(self._mnt_point, "%s-%s-" % (self._fs_type, rw))
         for j in range(1, rng + 1):
-            res_file = os.path.join(self._mnt_point, "%s-%s-%s" % (self._fs_type, "r&w", random_string(8)))
-            cmd = "./%s.sh %s %s %s" % (self._type[self._type.index(tools_type)], parm1, parm2, res_file)
-            print(cmd)
-            self._client.containers.create(image=image, command=cmd, volumes=volume, working_dir="/")
+            command = cmd + res_prefix + random_string(8)
+            if tools_type is "iozone":
+                command = command + ".xls"
+            print(command)
+            self._client.containers.create(image=image, command=command, volumes=volume, working_dir="/test/")
         cntrs_list = self._client.containers.list(all=True)
         for cid in cntrs_list:
             cid.start()
@@ -122,7 +124,7 @@ class Test:
     def start(self):
         self._pre_work()
         for tool in self._type:
-            print(tool+32*"%")
+            print(tool + 32 * "%")
             result_directory = os.path.join(self._result_directory, tool)
             volume = {result_directory: self._mnt_point}
             os.system("mkdir  -p  %s" % result_directory)
@@ -132,15 +134,18 @@ class Test:
                 parm1 = "%s -i %s" % (rw[0], rw[1])
                 if self._io_flag:
                     parm1 = parm1 + " -I"
-                self._ex_test(tool, parm1, parm2, volume, 16, True)
+                cmd = "iozone -a -i %s -r %s  -s 4g -Rab " % (parm1, parm2)
+                self._ex_test(tool, "rw", cmd, volume, 16, True)
                 continue
-            elif "fio":
+            elif tool is "fio":
                 for rw_type in self._rw_mode[tool]:
                     print(rw_type + 16 * "#")
                     parm1 = "%s -ioengine=sync" % rw_type
                     if self._io_flag:
                         parm1 = parm1 + " -direct=1"
-                    self._ex_test(tool, parm1, parm2, volume, 16, True)
+                    cmd = "fio -filename=/test/file -rw=%s -bs=%s -size=32G -runtime=180 -thread -name=mytest > " % (
+                        parm1, parm2)
+                    self._ex_test(tool, rw_type, cmd, volume, 16, True)
 
             else:  # sysbench
                 for rw_type in self._rw_mode[tool]:
@@ -148,4 +153,15 @@ class Test:
                     parm1 = "%s --file-io-mode=sync" % rw_type
                     if self._io_flag:
                         parm1 = parm1 + " --file-extra-flags=direct"
-                    self._ex_test(tool, parm1, parm2, volume, 16, True)
+                    fp = open(os.path.join(os.getcwd(), "image_sys/Dockerfile"), "w")
+                    fp.write("FROM %s\n" % image)
+                    fp.write("MAINTAINER yujinyu\n")
+                    fp.write("WORKDIR /test/\n")
+                    fp.write(
+                        "RUN sysbench --test=fileio --file-test-mode=%s --file-block-size=%s --file-total-size=4G prepare" % (
+                        parm1, parm2))
+                    fp.close()
+                    build_image(os.path.join(os.getcwd(), "image_sys"), image, self._client)
+                    cmd = "sysbench --test=fileio --file-test-mode=%s --file-block-size=%s --file-total-size=4G run > " % (
+                        parm1, parm2)
+                    self._ex_test(tool, rw_type, cmd, volume, 16, True)
