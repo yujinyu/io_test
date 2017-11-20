@@ -3,6 +3,7 @@ import time
 import docker
 from random import Random
 
+
 def random_string(length=6):
     string = ""
     chars = "AaBbCDdEeFfGgHhJKkLMmNnPpQqRrSTtUuVvWwXxYy3456789"
@@ -20,6 +21,7 @@ def build_image(path2dockerfile, image, client=docker.from_env()):
     except Exception as e:
         print("Failed to build image!\n%s" % str(e))
         exit(-1)
+
 
 def mkfs_mnt(dev, fs, mntpoint):
     if fs in ["ext4", "ext3", "ext2"]:
@@ -52,6 +54,7 @@ def rm_cntrs(clt):
     cntrs_list = clt.containers.list(all=True)
     for cid in cntrs_list:
         cid.remove()
+
 
 class Test:
     _type = ["fio", "sysbench", "iozone"]
@@ -89,22 +92,30 @@ class Test:
             if tool is "iozone":
                 parm1 = "0 -i 1 -I "
                 parm2 = "4k"
+                self._ex_test(tool, parm1, parm2, volume, 16, True)
                 continue
             for rw_type in self._rw_mode[tool]:
                 res_file = os.path.join(self._mnt_point, "%s-%s-%s" % (self._fs_type, rw_type, random_string(8)))
                 print("%s\n%s\n" % (result_directory, res_file))
 
     def _ex_test(self, tools_type, parm1, parm2, vol, rng, spec=False):
-        if spec:
+        if not spec:
             for i in range(1, rng):
+                self._crt_run(tools_type, i, parm1, parm2, vol)
                 while whether_wait(self._client):
                     time.sleep(30)
                 rm_cntrs(self._client)
-                for j in range(1, i + 1):
-                    res_file = os.path.join(self._mnt_point, "%s-%s-%s" % (self._fs_type, "r&w", random_string(8)))
-                    cmd = "%s.sh %s %s %s" % (self._type[self._type.index(tools_type)], parm1, parm2, res_file)
-                    self._client.create(image=self._image, command=cmd, auto_remove=True, volume=vol)
-                cntrs_list = self._client.containers.list(all=True)
-                for cid in cntrs_list:
-                    cid.star()
-                print("%s-%s" % (tools_type, str(i)))
+        else:
+            self._crt_run(tools_type, rng, parm1, parm2, vol)
+            while whether_wait(self._client):
+                time.sleep(30)
+            rm_cntrs(self._client)
+
+    def _crt_run(self, tools_type, rng, parm1, parm2, volume):
+        for j in range(1, rng + 1):
+            res_file = os.path.join(self._mnt_point, "%s-%s-%s" % (self._fs_type, "r&w", random_string(8)))
+            cmd = "%s.sh %s %s %s" % (self._type[self._type.index(tools_type)], parm1, parm2, res_file)
+            self._client.create(image=self._image, command=cmd, auto_remove=True, volume=volume)
+        cntrs_list = self._client.containers.list(all=True)
+        for cid in cntrs_list:
+            cid.start()
