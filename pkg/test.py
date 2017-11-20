@@ -110,7 +110,7 @@ class Test:
             rm_cntrs(self._client)
 
     def _crt_run(self, tools_type, rw, rng, cmd, volume):
-        res_prefix = os.path.join(self._mnt_point, "%s-%s-" % (self._fs_type, rw))
+        res_prefix = os.path.join(self._mnt_point, "%s-%s-%s-" % (self._fs_type, rw, str(rng)))
         for j in range(1, rng + 1):
             command = cmd + res_prefix + random_string(8)
             if tools_type is "iozone":
