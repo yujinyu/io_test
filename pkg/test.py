@@ -132,28 +132,29 @@ class Test:
             rw = self._rw_mode[self._type[self._type.index(tool)]]
             parm2 = "128k"
             if tool is "iozone":
-                parm1 = "%s -i %s" % (rw[0], rw[1])
+                parm1 = "%s@-i@%s" % (rw[0], rw[1])
                 if self._io_flag:
-                    parm1 = parm1 + " -I"
-                cmd = "./run iozone -a -i %s -r %s  -s 256m -Rb " % (parm1, parm2)
+                    parm1 = parm1 + "@-I"
+                print(parm1)
+                cmd = "./run %s %s %s " % (tool, parm1, parm2)
                 self._ex_test(tool, "rw", cmd, volume, 16, True)
                 continue
             elif tool is "fio":
                 for rw_type in self._rw_mode[tool]:
                     print(rw_type + 16 * "#")
-                    parm1 = "%s -ioengine=sync" % rw_type
+                    parm1 = "%s@-ioengine=sync" % rw_type
                     if self._io_flag:
-                        parm1 = parm1 + " -direct=1"
-                    cmd = "./run fio -filename=/test/file -rw=%s -bs=%s -size=2G -runtime=180 -thread -name=mytest > " % (
-                        parm1, parm2)
+                        parm1 = parm1 + "@-direct=1"
+                    print(parm1)
+                    cmd = "./run %s %s %s " % (tool, parm1, parm2)
                     self._ex_test(tool, rw_type, cmd, volume, 16, True)
 
             else:  # sysbench
                 for rw_type in self._rw_mode[tool]:
                     print(rw_type + 16 * "#")
-                    parm1 = "%s --file-io-mode=sync" % rw_type
+                    parm1 = "%s@--file-io-mode=sync" % rw_type
                     if self._io_flag:
-                        parm1 = parm1 + " --file-extra-flags=direct"
+                        parm1 = parm1 + "@--file-extra-flags=direct"
                     fp = open(os.path.join(os.getcwd(), "image_sys/Dockerfile"), "w")
                     fp.write("FROM %s\n" % image)
                     fp.write("MAINTAINER yujinyu\n")
@@ -163,6 +164,5 @@ class Test:
                         parm1, parm2))
                     fp.close()
                     build_image(os.path.join(os.getcwd(), "image_sys"), image, self._client)
-                    cmd = "./run sysbench --test=fileio --file-test-mode=%s --file-block-size=%s --file-total-size=2G run > " % (
-                        parm1, parm2)
+                    cmd = "./run %s %s %s " % (tool, parm1, parm2)
                     self._ex_test(tool, rw_type, cmd, volume, 16, True)

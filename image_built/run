@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # $0 filename
 # $1 tools_type
-# $2...n test cmd
+# $2 rw mode
+# $3 blocksize
+# $4 res_file
 
 if [$1 == "fio"];then
-    $@
+    fio -filename=/test/file -rw=$2 -bs=$3 -size=2G -runtime=180 -thread -name=mytest >$4
 elif [$1 == "iozone"];then
-    $@
+     iozone -a -i $2 -r $3  -s 256m -Rb $4
 else
-    $@
+    sysbench --test=fileio --file-test-mode=$2 --file-block-size=$3 --file-total-size=2G run > $4
 fi
 
 
