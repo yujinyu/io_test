@@ -161,7 +161,7 @@ class Test:
                     fp.write("WORKDIR /test/\n")
                     fp.write(
                         "RUN sysbench --test=fileio --file-test-mode=%s --file-block-size=%s --file-total-size=2G prepare" % (
-                        parm1, parm2))
+                        parm1.replace("@"," "), parm2))
                     fp.close()
                     build_image(os.path.join(os.getcwd(), "image_sys"), image, self._client)
                     cmd = "./run %s %s %s " % (tool, parm1, parm2)
