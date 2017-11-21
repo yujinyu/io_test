@@ -5,12 +5,14 @@
 # $3 blocksize
 # $4 res_file
 
+str=${sed '$2/@/ /g'}
+
 if [$1 == "fio"];then
-    fio -filename=/test/file -rw=$2 -bs=$3 -size=2G -runtime=180 -thread -name=mytest >$4
+    fio -filename=/test/file -rw=$str -bs=$3 -size=2G -runtime=180 -thread -name=mytest >$4
 elif [$1 == "iozone"];then
-     iozone -a -i $2 -r $3  -s 256m -Rb $4
+     iozone -a -i $str -r $3  -s 256m -Rb $4
 else
-    sysbench --test=fileio --file-test-mode=$2 --file-block-size=$3 --file-total-size=2G run > $4
+    sysbench --test=fileio --file-test-mode=$str --file-block-size=$3 --file-total-size=2G run > $4
 fi
 
 
