@@ -7,7 +7,7 @@
 
 str=$2
 str=${str//@/ }
-echo $str
+# echo $str
 
 if [ $1 == "fio" ]; then
     fio -filename=/test/file -rw=$str -bs=$3 -size=2G -runtime=180 -thread -name=mytest > $4

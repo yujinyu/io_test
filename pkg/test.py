@@ -19,7 +19,7 @@ def random_string(llen=6):
 def build_image(path2dockerfile, img, client=docker.from_env()):
     try:
         client.images.build(path=path2dockerfile, tag=img)
-        print("Build img Successfully!")
+        print("Build image Successfully!")
     except Exception as e:
         print("Failed to build image!\n%s" % str(e))
         exit(-1)
@@ -104,7 +104,7 @@ class Test:
                 command = command + ".xls"
             print(command)
             print(volume)
-            self._client.containers.create(image=image, command=command, volumes=volume, working_dir="/test/")
+            self._client.containers.create(image=image, command=command, volumes=volume, name=random_string(8), working_dir="/test/")
         cntrs_list = self._client.containers.list(all=True)
         for cid in cntrs_list:
             cid.start()
