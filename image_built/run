@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# $0 filename
+# $1 tools_type
+# $2...n test cmd
+
+if [$1 == "fio"];then
+    $@
+elif [$1 == "iozone"];then
+    $@
+else
+    $@
+fi
+
+
+
+
+
+
+
+
