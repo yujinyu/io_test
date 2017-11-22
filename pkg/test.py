@@ -4,6 +4,7 @@ import docker
 from random import Random
 from pkg.lockstat import start as lockstat_start, stop as lockstat_stop, get as get_lockstat
 from pkg.cpu import get_num_of_cpus
+
 image = "iotest:allinone"
 
 
@@ -86,7 +87,7 @@ class Test:
     #  4=Re-write-record, 5=stride-read,  6=fwrite/re-fwrite,  7=fread/Re-fread
     #  8=random mix, 9=pwrite/Re-pwrite, 10=pread/Re-pread
     # 11=pwritev/Re-pwritev, 12=preadv/Re-preadv
-    _rw_mode = {"fio": ["write", "read"], "sysbench": ["seqwr", "seqrd"], "iozone": ["0", "1"]}
+    _rw_mode = {"fio": ["read", "write"], "sysbench": ["seqwr", "seqrd"], "iozone": ["0", "1"]}
 
     def __init__(self, storage_device, fs_type, default_bs, mount_point, result_dir, scale_test=True, direct_io=True):
         self._client = docker.from_env()
@@ -109,18 +110,24 @@ class Test:
     def _crt_run(self, tools_type, rw, rng, cmd, volume):
         res_prefix = os.path.join(self._mnt_point, "%s-%s-%s-" % (self._fs_type, rw, str(rng)))
         lockstat_start()
+        tim = 120
+        timepre = 0
         for j in range(1, rng + 1):
-            command = cmd + res_prefix + random_string(8)
+            command = "%s%s%s" % (cmd, res_prefix, random_string(8))
             if tools_type is "iozone":
-                command = command + ".xls"
+                command = "%s.xls" % command
+            timepost = time.time()
+            if j > 1:
+                tim -= timepost - timepre
+            command = "%s %s" % (command, str(tim))
+            self._client.containers.run(image=image, command=command, volumes=volume, detach=True, name=random_string(8),
+                                        working_dir="/test/")
             print(command)
-            print(volume)
-            self._client.containers.create(image=image, command=command, volumes=volume, name=random_string(8),
-                                           working_dir="/test/")
-        cntrs_list = self._client.containers.list(all=True)
-        for cid in cntrs_list:
-            cid.start()
-            time.sleep(1)
+            timepre = timepost
+
+        # cntrs_list = self._client.containers.list(all=True)
+        # for cid in cntrs_list:
+        #     cid.start()
 
     def _ex_test(self, tools_type, rw, cmd, vol, rng, spec=False):
         if not spec:
@@ -129,7 +136,8 @@ class Test:
                 while whether_wait(self._client):
                     time.sleep(30)
                 lockstat_stop()
-                get_lockstat(os.path.join(self._mnt_point, "%s-%s-%s-lockstat" % (self._fs_type, rw, str(i))),True)
+                get_lockstat(os.path.join(self._result_directory, tools_type,
+                                          "%s-%s-%s-lockstat" % (self._fs_type, rw, str(i))), True)
                 rm_cntrs(self._client)
         else:
             self._crt_run(tools_type, rw, rng, cmd, vol)
@@ -152,7 +160,6 @@ class Test:
                 parm1 = "%s@-i@%s" % (rw[0], rw[1])
                 if self._io_flag:
                     parm1 = parm1 + "@-I"
-                print(parm1)
                 cmd = "./run %s %s %s " % (tool, parm1, parm2)
                 self._ex_test(tool, "rw", cmd, volume, self._max_num, self._scale_test)
                 continue
@@ -162,7 +169,6 @@ class Test:
                     parm1 = "%s@-ioengine=sync" % rw_type
                     if self._io_flag:
                         parm1 = parm1 + "@-direct=1"
-                    print(parm1)
                     cmd = "./run %s %s %s " % (tool, parm1, parm2)
                     self._ex_test(tool, rw_type, cmd, volume, self._max_num, self._scale_test)
 

@@ -76,7 +76,7 @@ def set_cpu_onoff(cpuid, onoff):
     res = _parse_range(cpuid)
     for ids in res:
         fp = open(path_sys + "cpu%d/online" % int(ids), "w")
-        print(onoff, file=fp)
+        fp.write(onoff)
         fp.close()
 
 

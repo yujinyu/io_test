@@ -10,9 +10,9 @@ str=${str//@/ }
 # echo $str
 
 if [ $1 == "fio" ]; then
-    fio -filename=/test/file -rw=$str -bs=$3 -size=2G -runtime=180 -thread -name=mytest > $4
+    sleep $5 && fio -filename=/test/file -rw=$str -bs=$3 -size=2G -runtime=180 -thread -name=mytest > $4
 elif [ $1  == "iozone" ]; then
-     iozone -a -i $str -r $3  -s 256m -Rb $4
+     sleep $5 && iozone -i $str -r $3  -s 256m -Rb $4
 elif [ $1 == "sysbench" ]; then
-    sysbench --test=fileio --file-test-mode=$str --file-block-size=$3 --file-total-size=2G run > $4
+    sleep $5 && sysbench --test=fileio --file-test-mode=$str --file-block-size=$3 --file-total-size=2G run > $4
 fi
