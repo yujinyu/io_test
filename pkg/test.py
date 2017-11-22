@@ -2,7 +2,8 @@ import os
 import time
 import docker
 from random import Random
-
+from pkg.lockstat import start as lockstat_start, stop as lockstat_stop, get as get_lockstat
+from pkg.cpu import get_num_of_cpus
 image = "iotest:allinone"
 
 
@@ -51,8 +52,14 @@ def mkfs_mnt(dev, fs, mntpoint):
         os.system("mount -t %s %s %s" % (fs, dev, mntpoint))
     else:
         print("unsupported fs %s" % fs)
-        return -1
-    return 0
+        exit(-1)
+    tfs = os.popen("df -T |grep %s |awk '{print$2}'" % mntpoint).read()
+    if fs != "ext4nj":
+        if str(tfs).replace('\n', '') != fs:
+            exit(1)
+    else:
+        if str(tfs).replace('\n', '') != "ext4":
+            exit(1)
 
 
 def whether_wait(clt):
@@ -69,7 +76,7 @@ def rm_cntrs(clt):
 
 
 class Test:
-    _type = ["fio", "iozone","sysbench"]
+    _type = ["fio", "iozone", "sysbench"]
 
     # rw_mode
     # fio: write , read
@@ -81,13 +88,16 @@ class Test:
     # 11=pwritev/Re-pwritev, 12=preadv/Re-preadv
     _rw_mode = {"fio": ["write", "read"], "sysbench": ["seqwr", "seqrd"], "iozone": ["0", "1"]}
 
-    def __init__(self, storage_device, fs_type, mount_point, result_dir, io_flag=True):
+    def __init__(self, storage_device, fs_type, default_bs, mount_point, result_dir, scale_test=True, direct_io=True):
         self._client = docker.from_env()
         self._device = storage_device
         self._fs_type = fs_type
         self._mnt_point = mount_point
         self._result_directory = result_dir
-        self._io_flag = io_flag
+        self._scale_test = scale_test
+        self._io_flag = direct_io
+        self._default_bs = default_bs
+        self._max_num = get_num_of_cpus()
         self._saved_image = "%s.tar" % image.replace(":", "-")
 
     def _pre_work(self):
@@ -98,16 +108,19 @@ class Test:
 
     def _crt_run(self, tools_type, rw, rng, cmd, volume):
         res_prefix = os.path.join(self._mnt_point, "%s-%s-%s-" % (self._fs_type, rw, str(rng)))
+        lockstat_start()
         for j in range(1, rng + 1):
             command = cmd + res_prefix + random_string(8)
             if tools_type is "iozone":
                 command = command + ".xls"
             print(command)
             print(volume)
-            self._client.containers.create(image=image, command=command, volumes=volume, name=random_string(8), working_dir="/test/")
+            self._client.containers.create(image=image, command=command, volumes=volume, name=random_string(8),
+                                           working_dir="/test/")
         cntrs_list = self._client.containers.list(all=True)
         for cid in cntrs_list:
             cid.start()
+            time.sleep(1)
 
     def _ex_test(self, tools_type, rw, cmd, vol, rng, spec=False):
         if not spec:
@@ -115,11 +128,15 @@ class Test:
                 self._crt_run(tools_type, rw, i, cmd, vol)
                 while whether_wait(self._client):
                     time.sleep(30)
+                lockstat_stop()
+                get_lockstat(os.path.join(self._mnt_point, "%s-%s-%s-lockstat" % (self._fs_type, rw, str(i))),True)
                 rm_cntrs(self._client)
         else:
             self._crt_run(tools_type, rw, rng, cmd, vol)
             while whether_wait(self._client):
                 time.sleep(30)
+            lockstat_stop()
+            get_lockstat(os.path.join(self._mnt_point, "%s-%s-%s-lockstat" % (self._fs_type, rw, str(rng))), True)
             rm_cntrs(self._client)
 
     def start(self):
@@ -130,14 +147,14 @@ class Test:
             volume = {result_directory: self._mnt_point}
             os.system("mkdir  -p  %s" % result_directory)
             rw = self._rw_mode[self._type[self._type.index(tool)]]
-            parm2 = "128k"
+            parm2 = self._default_bs
             if tool is "iozone":
                 parm1 = "%s@-i@%s" % (rw[0], rw[1])
                 if self._io_flag:
                     parm1 = parm1 + "@-I"
                 print(parm1)
                 cmd = "./run %s %s %s " % (tool, parm1, parm2)
-                self._ex_test(tool, "rw", cmd, volume, 16, True)
+                self._ex_test(tool, "rw", cmd, volume, self._max_num, self._scale_test)
                 continue
             elif tool is "fio":
                 for rw_type in self._rw_mode[tool]:
@@ -147,7 +164,7 @@ class Test:
                         parm1 = parm1 + "@-direct=1"
                     print(parm1)
                     cmd = "./run %s %s %s " % (tool, parm1, parm2)
-                    self._ex_test(tool, rw_type, cmd, volume, 16, True)
+                    self._ex_test(tool, rw_type, cmd, volume, self._max_num, self._scale_test)
 
             else:  # sysbench
                 for rw_type in self._rw_mode[tool]:
@@ -161,7 +178,7 @@ class Test:
                     fp.write("WORKDIR /test/\n")
                     fp.write(
                         "RUN sysbench --test=fileio --file-test-mode=%s --file-block-size=%s --file-total-size=2G prepare" % (
-                        parm1.replace("@"," "), parm2))
+                            parm1.replace("@", " "), parm2))
                     fp.close()
                     build_image(os.path.join(os.getcwd(), "image_sys"), image, self._client)
                     cmd = "./run %s %s %s " % (tool, parm1, parm2)
