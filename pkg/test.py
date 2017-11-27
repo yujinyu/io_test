@@ -7,6 +7,10 @@ from pkg.cpu import get_num_of_cpus
 
 image = "iotest:allinone"
 
+tools_type = ["fio","iozone","sysbench"]
+fs_type = ["ext4","ext4nj", "btrfs","xfs"]
+rw_mode = {"fio": ["write", "read"], "iozone": ["r&w"], "sysbench": ["seqwr", "seqrd"]}
+
 
 def random_string(llen=6):
     string = ""
@@ -41,16 +45,16 @@ def mkfs_mnt(dev, fs, mntpoint):
     if fs in ["ext4", "ext3", "ext2"]:
         os.system("echo \"y\" | mkfs.%s %s" % (fs, dev))
         os.system("mount -t %s %s %s" % (fs, dev, mntpoint))
-    elif ["f2fs", "xfs", "btrfs"]:
+    elif fs in ["f2fs", "xfs", "btrfs"]:
         os.system("mkfs.%s -f %s" % (fs, dev))
         os.system("mount -t %s %s %s" % (fs, dev, mntpoint))
     elif fs == "zfs":
         os.system("zpool create -f zfspool %s" % dev)
         os.system("zfs create -o mountpoint=%s zfspool/docker" % mntpoint)
-    elif "ext4nj":
+    elif fs == "ext4nj":
         os.system("echo \"y\" | mkfs.ext4  %s" % dev)
         os.system("tune2fs -O ^has_journal %s" % dev)
-        os.system("mount -t %s %s %s" % (fs, dev, mntpoint))
+        os.system("mount -t %s %s %s" % ("ext4", dev, mntpoint))
     else:
         print("unsupported fs %s" % fs)
         exit(-1)
@@ -77,8 +81,7 @@ def rm_cntrs(clt):
 
 
 class Test:
-    _type = ["fio", "iozone", "sysbench"]
-
+    _type = tools_type
     # rw_mode
     # fio: write , read
     # sysbench: seqwr, seqrd
@@ -87,9 +90,9 @@ class Test:
     #  4=Re-write-record, 5=stride-read,  6=fwrite/re-fwrite,  7=fread/Re-fread
     #  8=random mix, 9=pwrite/Re-pwrite, 10=pread/Re-pread
     # 11=pwritev/Re-pwritev, 12=preadv/Re-preadv
-    _rw_mode = {"fio": ["read", "write"], "sysbench": ["seqwr", "seqrd"], "iozone": ["0", "1"]}
+    _rw_mode = rw_mode
 
-    def __init__(self, storage_device, fs_type, default_bs, mount_point, result_dir, scale_test=True, direct_io=True):
+    def __init__(self, storage_device, fs_type, default_bs, mount_point, result_dir, scale_test, direct_io=True):
         self._client = docker.from_env()
         self._device = storage_device
         self._fs_type = fs_type
@@ -98,7 +101,7 @@ class Test:
         self._scale_test = scale_test
         self._io_flag = direct_io
         self._default_bs = default_bs
-        self._max_num = get_num_of_cpus()
+        self._max_num = get_num_of_cpus() + 1
         self._saved_image = "%s.tar" % image.replace(":", "-")
 
     def _pre_work(self):
@@ -110,7 +113,7 @@ class Test:
     def _crt_run(self, tools_type, rw, rng, cmd, volume):
         res_prefix = os.path.join(self._mnt_point, "%s-%s-%s-" % (self._fs_type, rw, str(rng)))
         lockstat_start()
-        tim = 120
+        tim = 30
         timepre = 0
         for j in range(1, rng + 1):
             command = "%s%s%s" % (cmd, res_prefix, random_string(8))
@@ -144,7 +147,8 @@ class Test:
             while whether_wait(self._client):
                 time.sleep(30)
             lockstat_stop()
-            get_lockstat(os.path.join(self._mnt_point, "%s-%s-%s-lockstat" % (self._fs_type, rw, str(rng))), True)
+            get_lockstat(os.path.join(self._result_directory, tools_type,
+                                      "%s-%s-%s-lockstat" % (self._fs_type, rw, str(rng))), True)
             rm_cntrs(self._client)
 
     def start(self):
