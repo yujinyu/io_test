@@ -1,8 +1,6 @@
 # -*- coding:utf-8 –*-
 import os
 from openpyxl import Workbook
-from openpyxl import load_workbook
-from openpyxl.writer.excel import ExcelWriter
 from pkg.cpu import get_num_of_cpus
 from pkg.test import fs_type, tools_type
 rw_mode = {"fio": ["write", "read"], "iozone": ["r&w"], "sysbench": ["seqwr", "seqrd"]}
@@ -68,7 +66,7 @@ class Analysis:
         elif tool_type == "iozone":
             pass
 
-    def _read_lock_stat(self,data):
+    # def _read_lock_stat(self,data):
 
 
 
