@@ -6,6 +6,7 @@ from pkg.analysis import Analysis
 
 device = "/dev/sdb"
 result_dir = "/home/result"
+blocksize = ["4k","512k","1m","4m"]
 
 
 def prepare(path2dockerfile):
@@ -17,11 +18,15 @@ def prepare(path2dockerfile):
 
 if __name__ == "__main__":
     # prepare(os.path.join(os.getcwd(), "image_built"))
-    # for fs in fs_type:
-    #    print(fs + 64 * "*")
-    #    io_test = Test(device, fs, "4k", "/mnt", result_dir, False, True)
-    #    io_test.start()
-    res = Analysis(result_dir, True)
-    res.start()
-    # os.system("mv %s /home/Test/result-%s" % (result_dir, time.strftime('%y%m%d%H%M%S', time.localtime(time.time()))))
+    for bs in blocksize:
+        print(bs + 80 * "*")
+        for fs in fs_type:
+            print(fs + 64 * "*")
+            io_test = Test(device, fs, bs, "/mnt", result_dir, False, True)
+            io_test.start()
+        res = Analysis(result_dir, True)
+        res.start()
+        os.system(
+            "mv %s /home/Test/result-%s-%s" % (result_dir, bs, time.strftime('%y%m%d%H%M%S', time.localtime(time.time()))))
+
 

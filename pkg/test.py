@@ -9,7 +9,7 @@ image = "iotest:allinone"
 
 tools_type = ["fio","iozone","sysbench"]
 fs_type = ["ext4","ext4nj", "btrfs","xfs"]
-rw_mode = {"fio": ["write", "read"], "iozone": ["r&w"], "sysbench": ["seqwr", "seqrd"]}
+rw_mode = {"fio": ["write", "read"], "iozone": ["0","1"], "sysbench": ["seqwr", "seqrd"]}
 
 
 def random_string(llen=6):
@@ -154,7 +154,7 @@ class Test:
     def start(self):
         self._pre_work()
         for tool in self._type:
-            print(tool + 32 * "%")
+            print(tool + 48 * "%")
             result_directory = os.path.join(self._result_directory, tool)
             volume = {result_directory: self._mnt_point}
             os.system("mkdir  -p  %s" % result_directory)
@@ -169,7 +169,7 @@ class Test:
                 continue
             elif tool is "fio":
                 for rw_type in self._rw_mode[tool]:
-                    print(rw_type + 16 * "#")
+                    print(rw_type + 32 * "#")
                     parm1 = "%s@-ioengine=sync" % rw_type
                     if self._io_flag:
                         parm1 = parm1 + "@-direct=1"
@@ -178,7 +178,7 @@ class Test:
 
             else:  # sysbench
                 for rw_type in self._rw_mode[tool]:
-                    print(rw_type + 16 * "#")
+                    print(rw_type + 32 * "#")
                     parm1 = "%s@--file-io-mode=sync" % rw_type
                     if self._io_flag:
                         parm1 = parm1 + "@--file-extra-flags=direct"
