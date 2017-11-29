@@ -10,7 +10,7 @@ image = "iotest:allinone"
 tools_type = ["fio","iozone","sysbench"]
 fs_type = ["ext4","ext4nj", "btrfs","xfs"]
 rw_mode = {"fio": ["write", "read"], "iozone": ["0","1"], "sysbench": ["seqwr", "seqrd"]}
-
+iozone_rw = "rw"
 
 def random_string(llen=6):
     string = ""
@@ -165,7 +165,7 @@ class Test:
                 if self._io_flag:
                     parm1 = parm1 + "@-I"
                 cmd = "./run %s %s %s " % (tool, parm1, parm2)
-                self._ex_test(tool, "rw", cmd, volume, self._max_num, self._scale_test)
+                self._ex_test(tool, iozone_rw, cmd, volume, self._max_num, self._scale_test)
                 continue
             elif tool is "fio":
                 for rw_type in self._rw_mode[tool]:

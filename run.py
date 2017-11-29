@@ -6,7 +6,8 @@ from pkg.analysis import Analysis
 
 device = "/dev/sdb"
 result_dir = "/home/result"
-blocksize = ["4k","512k","1m","4m"]
+# blocksize = ["4k","512k","1m","4m"]
+blocksize = ["512k","1m","4m"]
 
 
 def prepare(path2dockerfile):

@@ -2,8 +2,8 @@
 import os
 from openpyxl import Workbook
 from pkg.cpu import get_num_of_cpus
-from pkg.test import fs_type, tools_type
-rw_mode = {"fio": ["write", "read"], "iozone": ["r&w"], "sysbench": ["seqwr", "seqrd"]}
+from pkg.test import fs_type, tools_type, iozone_rw
+rw_mode = {"fio": ["write", "read"], "iozone": [iozone_rw], "sysbench": ["seqwr", "seqrd"]}
 
 
 
@@ -11,7 +11,7 @@ class Analysis:
     def __init__(self, result_directory, scale_test):
         self._root_dir = result_directory
         self._scale_test = scale_test
-        self._max_num = get_num_of_cpus()
+        self._max_num = get_num_of_cpus() + 1
         self._tools_type = tools_type
         self._fs_type = fs_type
         self._rw_mode = rw_mode
@@ -122,7 +122,7 @@ class Analysis:
                 for rw in self._rw_mode[tool_type]:
                     if not self._scale_test:
                         tp = self._read_file_list(fs, rw, self._max_num, tool_type, file_list)
-                        line_list.append([fs, rw, str(self._max_num - 1), tp[0], tp[1]])
+                        line_list.append([fs, rw, str(self._max_num), tp[0], tp[1]])
                     else:
                         for i in range(1, self._max_num):
                             tp = self._read_file_list(fs, rw, i + 1, tool_type, file_list)
