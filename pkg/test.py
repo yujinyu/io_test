@@ -162,7 +162,7 @@ class Test:
             parm2 = self._default_bs
             if tool is "iozone":
                 parm1 = "%s@-i@%s" % (rw[0], rw[1])
-                if self._io_flag:
+                if not self._io_flag:
                     parm1 = parm1 + "@-I"
                 cmd = "./run %s %s %s " % (tool, parm1, parm2)
                 self._ex_test(tool, iozone_rw, cmd, volume, self._max_num, self._scale_test)

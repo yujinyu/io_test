@@ -6,8 +6,8 @@ from pkg.analysis import Analysis
 
 device = "/dev/sdb"
 result_dir = "/home/result"
-# blocksize = ["4k","512k","1m","4m"]
-blocksize = ["512k","1m","4m"]
+blocksize = ["4k","512k","1m","4m"]
+# blocksize = ["512k","1m","4m"]
 
 
 def prepare(path2dockerfile):
@@ -23,9 +23,9 @@ if __name__ == "__main__":
         print(bs + 80 * "*")
         for fs in fs_type:
             print(fs + 64 * "*")
-            io_test = Test(device, fs, bs, "/mnt", result_dir, False, True)
+            io_test = Test(device, fs, bs, "/mnt", result_dir, scale_test=True, direct_io=True)
             io_test.start()
-        res = Analysis(result_dir, True)
+        res = Analysis(result_dir, scale_test=True)
         res.start()
         os.system(
             "mv %s /home/Test/result-%s-%s" % (result_dir, bs, time.strftime('%y%m%d%H%M%S', time.localtime(time.time()))))
