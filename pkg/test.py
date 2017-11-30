@@ -7,10 +7,11 @@ from pkg.cpu import get_num_of_cpus
 
 image = "iotest:allinone"
 
-tools_type = ["fio","iozone","sysbench"]
-fs_type = ["ext4","ext4nj", "btrfs","xfs"]
-rw_mode = {"fio": ["write", "read"], "iozone": ["0","1"], "sysbench": ["seqwr", "seqrd"]}
+tools_type = ["fio", "iozone", "sysbench"]
+fs_type = ["ext4", "ext4nj", "btrfs", "xfs"]
+rw_mode = {"fio": ["write", "read"], "iozone": ["0", "1"], "sysbench": ["seqwr", "seqrd"]}
 iozone_rw = "rw"
+
 
 def random_string(llen=6):
     string = ""
@@ -123,14 +124,15 @@ class Test:
             if j > 1:
                 tim -= timepost - timepre
             command = "%s %s" % (command, str(tim))
-            self._client.containers.run(image=image, command=command, volumes=volume, detach=True, name=random_string(8),
+            self._client.containers.run(image=image, command=command, volumes=volume, detach=True,
+                                        name=random_string(8),
                                         working_dir="/test/")
             print(command)
             timepre = timepost
 
-        # cntrs_list = self._client.containers.list(all=True)
-        # for cid in cntrs_list:
-        #     cid.start()
+            # cntrs_list = self._client.containers.list(all=True)
+            # for cid in cntrs_list:
+            #     cid.start()
 
     def _ex_test(self, tools_type, rw, cmd, vol, rng, spec=False):
         if not spec:
@@ -175,8 +177,7 @@ class Test:
                         parm1 = parm1 + "@-direct=1"
                     cmd = "./run %s %s %s " % (tool, parm1, parm2)
                     self._ex_test(tool, rw_type, cmd, volume, self._max_num, self._scale_test)
-
-            else:  # sysbench
+            elif tool is "sysbench":
                 for rw_type in self._rw_mode[tool]:
                     print(rw_type + 32 * "#")
                     parm1 = "%s@--file-io-mode=sync" % rw_type
@@ -192,4 +193,4 @@ class Test:
                     fp.close()
                     build_image(os.path.join(os.getcwd(), "image_sys"), image, self._client)
                     cmd = "./run %s %s %s " % (tool, parm1, parm2)
-                    self._ex_test(tool, rw_type, cmd, volume, 16, True)
+                    self._ex_test(tool, rw_type, cmd, volume, self._max_num, self._scale_test)

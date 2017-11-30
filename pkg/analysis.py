@@ -1,10 +1,11 @@
 # -*- coding:utf-8 –*-
 import os
 from openpyxl import Workbook
+import xlrd
 from pkg.cpu import get_num_of_cpus
 from pkg.test import fs_type, tools_type, iozone_rw
-rw_mode = {"fio": ["write", "read"], "iozone": [iozone_rw], "sysbench": ["seqwr", "seqrd"]}
 
+rw_mode = {"fio": ["write", "read"], "iozone": [iozone_rw], "sysbench": ["seqwr", "seqrd"]}
 
 
 class Analysis:
@@ -20,8 +21,9 @@ class Analysis:
         # iops  k
         # BW  MiB/s
         global iops, bw
-        fp = open(file, "r")
+
         if tool_type == "fio":
+            fp = open(file, "r")
             while True:
                 line = fp.readline()
                 if "IOPS" not in line:
@@ -42,6 +44,8 @@ class Analysis:
             fp.close()
             return iops, bw
         elif tool_type == "sysbench":
+            print(file)
+            fp = open(file, "r")
             while True:
                 line = fp.readline()
                 if "File operations:" in line:
@@ -64,7 +68,11 @@ class Analysis:
             fp.close()
             return iops, bw
         elif tool_type == "iozone":
-            pass
+            wb = xlrd.open_workbook(filename=file, encoding_override="utf-8")
+            table = wb.sheet_by_index(0)
+            iops = float(table.cell(11, 1).value) / 1024
+            bw = float(table.cell(5, 1).value) / 1024
+            return iops, bw
 
     # def _read_lock_stat(self,data):
 
@@ -74,6 +82,7 @@ class Analysis:
         sum_iops = 0
         sum_bw = 0
         i = 1
+        print(fs, rw, num)
         for file in file_list:
             if "%s-%s-%s-" % (fs, rw, str(num - 1)) in file:
                 iops, bw = self._read_per_file(os.path.join(self._root_dir, tool_type, file), tool_type)
@@ -101,8 +110,6 @@ class Analysis:
             iops_ws.cell(row=row, column=1).value = "%s-%s" % (line[0], line[1])
             bw_ws.cell(row=row, column=col).value = line[4]
             iops_ws.cell(row=row, column=col).value = line[3]
-            print(line)
-
         wb.save(file)
 
     def start(self):

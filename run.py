@@ -6,8 +6,8 @@ from pkg.analysis import Analysis
 
 device = "/dev/sdb"
 result_dir = "/home/result"
-blocksize = ["4k","512k","1m","4m"]
-# blocksize = ["512k","1m","4m"]
+# blocksize = ["4k","512k","1m","4m"]
+blocksize = ["512k", "1m", "4m"]
 
 
 def prepare(path2dockerfile):
@@ -18,7 +18,7 @@ def prepare(path2dockerfile):
 
 
 if __name__ == "__main__":
-    # prepare(os.path.join(os.getcwd(), "image_built"))
+    prepare(os.path.join(os.getcwd(), "image_built"))
     for bs in blocksize:
         print(bs + 80 * "*")
         for fs in fs_type:
@@ -28,6 +28,5 @@ if __name__ == "__main__":
         res = Analysis(result_dir, scale_test=True)
         res.start()
         os.system(
-            "mv %s /home/Test/result-%s-%s" % (result_dir, bs, time.strftime('%y%m%d%H%M%S', time.localtime(time.time()))))
-
-
+            "mv %s /home/Test/result-%s-%s" % (
+            result_dir, bs, time.strftime('%y%m%d%H%M%S', time.localtime(time.time()))))
