@@ -134,8 +134,8 @@ class Test:
             # for cid in cntrs_list:
             #     cid.start()
 
-    def _ex_test(self, tools_type, rw, cmd, vol, rng, spec=False):
-        if not spec:
+    def _ex_test(self, tools_type, rw, cmd, vol, rng, scale_test=True):
+        if scale_test:
             for i in range(1, rng):
                 self._crt_run(tools_type, rw, i, cmd, vol)
                 while whether_wait(self._client):
