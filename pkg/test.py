@@ -7,9 +7,12 @@ from pkg.cpu import get_num_of_cpus
 
 image = "iotest:allinone"
 
-tools_type = ["fio", "iozone", "sysbench"]
-fs_type = ["ext4", "ext4nj", "btrfs", "xfs"]
-rw_mode = {"fio": ["write", "read"], "iozone": ["0", "1"], "sysbench": ["seqwr", "seqrd"]}
+# tools_type = ["fio", "iozone", "sysbench"]
+tools_type = ["fio"]
+# fs_type = ["ext4", "ext4nj", "btrfs", "xfs"]
+fs_type = ["ext4", "ext4nj"]
+# rw_mode = {"fio": ["write", "read"], "iozone": ["0", "1"], "sysbench": ["seqwr", "seqrd"]}
+rw_mode = {"fio": ["write"]}
 iozone_rw = "rw"
 
 
@@ -124,7 +127,12 @@ class Test:
             if j > 1:
                 tim -= timepost - timepre
             command = "%s %s" % (command, str(tim))
-            self._client.containers.run(image=image, command=command, volumes=volume, detach=True,
+            self._client.containers.run(image=image, command=command,
+                                        volumes=volume,
+                                        detach=True,
+                                        cpuset_cpus="%s"%str(j-1),
+                                        # blkio_weight=int(0.5+1000/j),
+                                        mem_limit="2g",
                                         name=random_string(8),
                                         working_dir="/test/")
             print(command)
