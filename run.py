@@ -26,8 +26,8 @@ if __name__ == "__main__":
             print(fs + 64 * "*")
             io_test = Test(device, fs, bs, "/mnt", result_dir, scale_test=True, direct_io=False)
             io_test.start()
-        # res = Analysis(result_dir, scale_test=True)
-        # res.start()
+        res = Analysis(result_dir)
+        res.start()
         # os.system(
         #    "mv %s /home/Test/result-%s-%s" % (
         #         result_dir, bs, time.strftime('%y%m%d%H%M%S', time.localtime(time.time()))))

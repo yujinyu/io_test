@@ -6,15 +6,15 @@ from pkg.lockstat import start as lockstat_start, stop as lockstat_stop, get as 
 from pkg.cpu import get_num_of_cpus
 
 image = "iotest:allinone"
-
+flag = ["0","1"]
 # tools_type = ["fio", "iozone", "sysbench"]
-tools_type = ["fio"]
 # fs_type = ["ext4", "ext4nj", "btrfs", "xfs"]
 fs_type = ["ext4", "ext4nj"]
 # rw_mode = {"fio": ["write", "read"], "iozone": ["0", "1"], "sysbench": ["seqwr", "seqrd"]}
 rw_mode = {"fio": ["write"]}
 iozone_rw = "rw"
 
+m_limit = "2g"
 
 def random_string(llen=6):
     string = ""
@@ -85,7 +85,7 @@ def rm_cntrs(clt):
 
 
 class Test:
-    _type = tools_type
+    _type = ["fio"]
     # rw_mode
     # fio: write , read
     # sysbench: seqwr, seqrd
@@ -107,6 +107,11 @@ class Test:
         self._default_bs = default_bs
         self._max_num = get_num_of_cpus() + 1
         self._saved_image = "%s.tar" % image.replace(":", "-")
+        self._res_dirs = []
+        for cpu in flag:
+            for blkio in flag:
+                for mem in flag:
+                    self._res_dirs.append("fio-%s-%s-%s"%(cpu,blkio,mem))
 
     def _pre_work(self):
         docker_svc_stop()
@@ -116,9 +121,12 @@ class Test:
 
     def _crt_run(self, tools_type, rw, rng, cmd, volume):
         res_prefix = os.path.join(self._mnt_point, "%s-%s-%s-" % (self._fs_type, rw, str(rng)))
-        lockstat_start()
+        # lockstat_start()
         tim = 30
         timepre = 0
+        k = volume.keys()[0]
+        k = k.split("/")[-1].replace("fio-","")
+        print(k)
         for j in range(1, rng + 1):
             command = "%s%s%s" % (cmd, res_prefix, random_string(8))
             if tools_type is "iozone":
@@ -127,20 +135,81 @@ class Test:
             if j > 1:
                 tim -= timepost - timepre
             command = "%s %s" % (command, str(tim))
-            self._client.containers.run(image=image, command=command,
-                                        volumes=volume,
-                                        detach=True,
-                                        cpuset_cpus="%s"%str(j-1),
-                                        # blkio_weight=int(0.5+1000/j),
-                                        mem_limit="2g",
-                                        name=random_string(8),
-                                        working_dir="/test/")
+            if k == "0-0-0":
+                self._client.containers.run(image=image, command=command,
+                                            volumes=volume,
+                                            detach=True,
+                                            # cpuset_cpus="%s" % str(j - 1),
+                                            # blkio_weight=int(0.5 + 1000 / j),
+                                            # mem_limit=m_limit,
+                                            name=random_string(8),
+                                            working_dir="/test/")
+            elif k=="0-0-1":
+                self._client.containers.run(image=image, command=command,
+                                            volumes=volume,
+                                            detach=True,
+                                            # cpuset_cpus="%s" % str(j - 1),
+                                            # blkio_weight=int(0.5 + 1000 / j),
+                                            mem_limit=m_limit,
+                                            name=random_string(8),
+                                            working_dir="/test/")
+            elif k=="0-1-0":
+                self._client.containers.run(image=image, command=command,
+                                            volumes=volume,
+                                            detach=True,
+                                            # cpuset_cpus="%s" % str(j - 1),
+                                            blkio_weight=int(0.5 + 1000 / j),
+                                            # mem_limit=m_limit,
+                                            name=random_string(8),
+                                            working_dir="/test/")
+            elif k=="0-1-1":
+                self._client.containers.run(image=image, command=command,
+                                            volumes=volume,
+                                            detach=True,
+                                            # cpuset_cpus="%s" % str(j - 1),
+                                            blkio_weight=int(0.5 + 1000 / j),
+                                            mem_limit=m_limit,
+                                            name=random_string(8),
+                                            working_dir="/test/")
+
+            elif k=="1-0-0":
+                self._client.containers.run(image=image, command=command,
+                                            volumes=volume,
+                                            detach=True,
+                                            cpuset_cpus="%s" % str(j - 1),
+                                            # blkio_weight=int(0.5 + 1000 / j),
+                                            # mem_limit=m_limit,
+                                            name=random_string(8),
+                                            working_dir="/test/")
+            elif k=="1-0-1":
+                self._client.containers.run(image=image, command=command,
+                                            volumes=volume,
+                                            detach=True,
+                                            cpuset_cpus="%s" % str(j - 1),
+                                            # blkio_weight=int(0.5 + 1000 / j),
+                                            mem_limit=m_limit,
+                                            name=random_string(8),
+                                            working_dir="/test/")
+            elif k=="1-1-0":
+                self._client.containers.run(image=image, command=command,
+                                            volumes=volume,
+                                            detach=True,
+                                            cpuset_cpus="%s" % str(j - 1),
+                                            blkio_weight=int(0.5 + 1000 / j),
+                                            # mem_limit=m_limit,
+                                            name=random_string(8),
+                                            working_dir="/test/")
+            elif k=="1-1-1":
+                self._client.containers.run(image=image, command=command,
+                                            volumes=volume,
+                                            detach=True,
+                                            cpuset_cpus="%s" % str(j - 1),
+                                            blkio_weight=int(0.5 + 1000 / j),
+                                            mem_limit=m_limit,
+                                            name=random_string(8),
+                                            working_dir="/test/")
             print(command)
             timepre = timepost
-
-            # cntrs_list = self._client.containers.list(all=True)
-            # for cid in cntrs_list:
-            #     cid.start()
 
     def _ex_test(self, tools_type, rw, cmd, vol, rng, scale_test=True):
         if scale_test:
@@ -148,9 +217,9 @@ class Test:
                 self._crt_run(tools_type, rw, i, cmd, vol)
                 while whether_wait(self._client):
                     time.sleep(30)
-                lockstat_stop()
-                get_lockstat(os.path.join(self._result_directory, tools_type,
-                                          "%s-%s-%s-lockstat" % (self._fs_type, rw, str(i))), True)
+                # lockstat_stop()
+                # get_lockstat(os.path.join(self._result_directory, tools_type,
+                #                           "%s-%s-%s-lockstat" % (self._fs_type, rw, str(i))), True)
                 rm_cntrs(self._client)
         else:
             self._crt_run(tools_type, rw, rng, cmd, vol)
@@ -163,9 +232,10 @@ class Test:
 
     def start(self):
         self._pre_work()
-        for tool in self._type:
+        tool = "fio"
+        for res_dir in self._res_dirs:
             print(tool + 48 * "%")
-            result_directory = os.path.join(self._result_directory, tool)
+            result_directory = os.path.join(self._result_directory, res_dir)
             volume = {result_directory: self._mnt_point}
             os.system("mkdir  -p  %s" % result_directory)
             rw = self._rw_mode[self._type[self._type.index(tool)]]

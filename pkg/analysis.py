@@ -2,17 +2,18 @@
 import os
 from openpyxl import Workbook
 import xlrd
-from pkg.cpu import get_num_of_cpus
-from pkg.test import fs_type, tools_type, iozone_rw
 
-rw_mode = {"fio": ["write", "read"], "iozone": [iozone_rw], "sysbench": ["seqwr", "seqrd"]}
+tools_type = ["fio"]
+fs_type = ["ext4", "ext4nj"]
+iozone_rw = "rw"
+rw_mode = {"fio": ["write"]}
 
 
 class Analysis:
-    def __init__(self, result_directory, scale_test):
+    def __init__(self, result_directory, scale_test=True):
         self._root_dir = result_directory
         self._scale_test = scale_test
-        self._max_num = get_num_of_cpus() + 1
+        self._max_num = 16
         self._tools_type = tools_type
         self._fs_type = fs_type
         self._rw_mode = rw_mode
@@ -44,7 +45,6 @@ class Analysis:
             fp.close()
             return iops, bw
         elif tool_type == "sysbench":
-            print(file)
             fp = open(file, "r")
             while True:
                 line = fp.readline()
@@ -74,27 +74,22 @@ class Analysis:
             bw = float(table.cell(5, 1).value) / 1024
             return iops, bw
 
-    # def _read_lock_stat(self,data):
-
-
-
     def _read_file_list(self, fs, rw, num, tool_type, file_list):
         sum_iops = 0
         sum_bw = 0
-        i = 1
-        print(fs, rw, num)
+        # print(fs, rw, num)
         for file in file_list:
-            if "%s-%s-%s-" % (fs, rw, str(num - 1)) in file:
-                iops, bw = self._read_per_file(os.path.join(self._root_dir, tool_type, file), tool_type)
+            if "%s-%s-%s-" % (fs, rw, str(num)) in file:
+                iops, bw = self._read_per_file(os.path.join(self._root_dir, tool_type, file), "fio")
+                # print(file, iops, bw)
                 sum_iops += iops
                 sum_bw += bw
-                i += 1
-        if i == num:
-            return "%.3f" % (sum_iops / (num - 1)), "%.3f" % (sum_bw / (num - 1))
-        else:
-            return "%.3f" % (sum_iops / (i - 1)), "%.3f" % (sum_iops / (i - 1))
+        avg_iops = "%.3f" % (sum_iops / num)
+        avg_bw = "%.3f" % (sum_bw / num)
+        print(avg_iops, avg_bw)
+        return avg_iops, avg_bw
 
-    def _write2file(self, tool_type, data, file):
+    def _write2file(self, data, file):
         wb = Workbook()
         bw_ws = wb.get_sheet_by_name("Sheet")
         bw_ws.title = "bw"
@@ -104,7 +99,7 @@ class Analysis:
             iops_ws.cell(row=1, column=i + 1).value = i
 
         for line in data:
-            row = 2 + 2 * self._fs_type.index(line[0]) + self._rw_mode[tool_type].index(line[1])
+            row = 2 + 2 * self._fs_type.index(line[0]) + self._rw_mode["fio"].index(line[1])
             col = int(line[2]) + 1
             bw_ws.cell(row=row, column=1).value = "%s-%s" % (line[0], line[1])
             iops_ws.cell(row=row, column=1).value = "%s-%s" % (line[0], line[1])
@@ -113,26 +108,25 @@ class Analysis:
         wb.save(file)
 
     def start(self):
-        for tool_type in self._tools_type:
+        dir_list = os.listdir(self._root_dir)
+        for tool_type in dir_list:
+            print(tool_type)
             line_list = []
             tool_dir = os.path.join(self._root_dir, tool_type)
             if not os.path.isdir(tool_dir):
                 continue
             file_list = os.listdir(tool_dir)
             file_list.sort()
-            lockstat_list = []
             for file in file_list:
                 if "-lockstat" in file:
                     file_list.remove(file)
-                    lockstat_list.append(file)
             for fs in self._fs_type:
-                for rw in self._rw_mode[tool_type]:
+                for rw in ["write"]:
                     if not self._scale_test:
                         tp = self._read_file_list(fs, rw, self._max_num, tool_type, file_list)
                         line_list.append([fs, rw, str(self._max_num), tp[0], tp[1]])
                     else:
-                        for i in range(1, self._max_num):
+                        for i in range(0, self._max_num):
                             tp = self._read_file_list(fs, rw, i + 1, tool_type, file_list)
-                            line_list.append([fs, rw, str(i), tp[0], tp[1]])
-
-            self._write2file(tool_type, line_list, "%s/%s.xlsx" % (self._root_dir, tool_type))
+                            line_list.append([fs, rw, str(i+1), tp[0], tp[1]])
+            self._write2file(line_list, "%s/%s.xlsx" % (self._root_dir, tool_type))
