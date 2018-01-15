@@ -6,7 +6,9 @@ from pkg.lockstat import start as lockstat_start, stop as lockstat_stop, get as 
 from pkg.cpu import get_num_of_cpus
 
 image = "iotest:allinone"
-flag = ["0","1"]
+cpu_flag = ["0","1"]
+io_flag = ["0","1"]
+mem_flag = ["0","1"]
 # tools_type = ["fio", "iozone", "sysbench"]
 # fs_type = ["ext4", "ext4nj", "btrfs", "xfs"]
 fs_type = ["ext4", "ext4nj"]
@@ -108,9 +110,9 @@ class Test:
         self._max_num = get_num_of_cpus() + 1
         self._saved_image = "%s.tar" % image.replace(":", "-")
         self._res_dirs = []
-        for cpu in flag:
-            for blkio in flag:
-                for mem in flag:
+        for cpu in cpu_flag:
+            for blkio in io_flag:
+                for mem in mem_flag:
                     self._res_dirs.append("fio-%s-%s-%s"%(cpu,blkio,mem))
 
     def _pre_work(self):
