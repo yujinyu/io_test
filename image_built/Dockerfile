@@ -1,13 +1,12 @@
-FROM fedora:26
+FROM 192.168.3.51:5000/admin/ubuntu:16.04
 MAINTAINER yujinyu
 
-RUN dnf install -y libaio-devel fio
-RUN dnf install -y sysbench
-RUN dnf install -y wget make gcc
-RUN wget http://www.iozone.org/src/current/iozone3_471.tar && tar -xvf iozone3_471.tar
-RUN cd iozone3_471/src/current && make linux-AMD64 && cp iozone /usr/bin/
-RUN rm iozone3_471* -rf && dnf clean all
-COPY run /test/
-RUN chmod +x /test/run
-RUN mkdir -p /test && touch /test/file
+WORKDIR /usr/src/kernels/
+RUN apt install -y wget make gcc xz
+RUN wget https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.0.tar.xz
+RUN xz -d linux-4.0.tar.xz &&tar -xvf linux-4.0.tar && rm -f linux-4.0.tar
+WORKDIR /usr/src/kernels/linux-4.0/
+
+
+
 

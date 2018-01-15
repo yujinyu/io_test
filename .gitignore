@@ -2,5 +2,4 @@
 \.idea/
 pkg/*.tar
 pkg/*.pyc
-image_sys/Dockerfile
 pkg/__pycache__/

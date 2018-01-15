@@ -5,18 +5,9 @@ from random import Random
 from pkg.lockstat import start as lockstat_start, stop as lockstat_stop, get as get_lockstat
 from pkg.cpu import get_num_of_cpus
 
-image = "iotest:allinone"
+image = "test:cpu-bound"
 cpu_flag = ["0","1"]
-io_flag = ["0","1"]
-mem_flag = ["0","1"]
-# tools_type = ["fio", "iozone", "sysbench"]
-# fs_type = ["ext4", "ext4nj", "btrfs", "xfs"]
-fs_type = ["ext4", "ext4nj"]
-# rw_mode = {"fio": ["write", "read"], "iozone": ["0", "1"], "sysbench": ["seqwr", "seqrd"]}
-rw_mode = {"fio": ["write"]}
-iozone_rw = "rw"
-
-m_limit = "2g"
+m_limit = "4g"
 
 def random_string(llen=6):
     string = ""
@@ -28,9 +19,9 @@ def random_string(llen=6):
     return string
 
 
-def build_image(path2dockerfile, img, client=docker.from_env()):
+def build_image(path2dockerfile, client=docker.from_env()):
     try:
-        client.images.build(path=path2dockerfile, tag=img)
+        client.images.build(path=path2dockerfile, tag=image)
         print("Build image Successfully!")
     except Exception as e:
         print("Failed to build image!\n%s" % str(e))
@@ -87,7 +78,6 @@ def rm_cntrs(clt):
 
 
 class Test:
-    _type = ["fio"]
     # rw_mode
     # fio: write , read
     # sysbench: seqwr, seqrd
@@ -96,9 +86,8 @@ class Test:
     #  4=Re-write-record, 5=stride-read,  6=fwrite/re-fwrite,  7=fread/Re-fread
     #  8=random mix, 9=pwrite/Re-pwrite, 10=pread/Re-pread
     # 11=pwritev/Re-pwritev, 12=preadv/Re-preadv
-    _rw_mode = rw_mode
 
-    def __init__(self, storage_device, fs_type, default_bs, mount_point, result_dir, scale_test, direct_io=True):
+    def __init__(self, storage_device, fs_type, mount_point, result_dir, scale_test, direct_io=True):
         self._client = docker.from_env()
         self._device = storage_device
         self._fs_type = fs_type
@@ -106,171 +95,22 @@ class Test:
         self._result_directory = result_dir
         self._scale_test = scale_test
         self._io_flag = direct_io
-        self._default_bs = default_bs
         self._max_num = get_num_of_cpus() + 1
         self._saved_image = "%s.tar" % image.replace(":", "-")
         self._res_dirs = []
-        for cpu in cpu_flag:
-            for blkio in io_flag:
-                for mem in mem_flag:
-                    self._res_dirs.append("fio-%s-%s-%s"%(cpu,blkio,mem))
 
     def _pre_work(self):
         docker_svc_stop()
         mkfs_mnt(self._device, self._fs_type, "/var/lib/docker")
         os.system("systemctl restart docker")
-        os.system("docker load -i %s" % os.path.join(os.getcwd(), "pkg", self._saved_image))
+        print(os.getcwd())
+        build_image(os.path.join(os.getcwd(),"image_built"))
 
-    def _crt_run(self, tools_type, rw, rng, cmd, volume):
-        res_prefix = os.path.join(self._mnt_point, "%s-%s-%s-" % (self._fs_type, rw, str(rng)))
-        # lockstat_start()
-        tim = 30
-        timepre = 0
-        k = volume.keys()[0]
-        k = k.split("/")[-1].replace("fio-","")
-        print(k)
-        for j in range(1, rng + 1):
-            command = "%s%s%s" % (cmd, res_prefix, random_string(8))
-            if tools_type is "iozone":
-                command = "%s.xls" % command
-            timepost = time.time()
-            if j > 1:
-                tim -= timepost - timepre
-            command = "%s %s" % (command, str(tim))
-            if k == "0-0-0":
-                self._client.containers.run(image=image, command=command,
-                                            volumes=volume,
-                                            detach=True,
-                                            # cpuset_cpus="%s" % str(j - 1),
-                                            # blkio_weight=int(0.5 + 1000 / j),
-                                            # mem_limit=m_limit,
-                                            name=random_string(8),
-                                            working_dir="/test/")
-            elif k=="0-0-1":
-                self._client.containers.run(image=image, command=command,
-                                            volumes=volume,
-                                            detach=True,
-                                            # cpuset_cpus="%s" % str(j - 1),
-                                            # blkio_weight=int(0.5 + 1000 / j),
-                                            mem_limit=m_limit,
-                                            name=random_string(8),
-                                            working_dir="/test/")
-            elif k=="0-1-0":
-                self._client.containers.run(image=image, command=command,
-                                            volumes=volume,
-                                            detach=True,
-                                            # cpuset_cpus="%s" % str(j - 1),
-                                            blkio_weight=int(0.5 + 1000 / j),
-                                            # mem_limit=m_limit,
-                                            name=random_string(8),
-                                            working_dir="/test/")
-            elif k=="0-1-1":
-                self._client.containers.run(image=image, command=command,
-                                            volumes=volume,
-                                            detach=True,
-                                            # cpuset_cpus="%s" % str(j - 1),
-                                            blkio_weight=int(0.5 + 1000 / j),
-                                            mem_limit=m_limit,
-                                            name=random_string(8),
-                                            working_dir="/test/")
+    # def _crt_run(self, rng, cmd, volume):
 
-            elif k=="1-0-0":
-                self._client.containers.run(image=image, command=command,
-                                            volumes=volume,
-                                            detach=True,
-                                            cpuset_cpus="%s" % str(j - 1),
-                                            # blkio_weight=int(0.5 + 1000 / j),
-                                            # mem_limit=m_limit,
-                                            name=random_string(8),
-                                            working_dir="/test/")
-            elif k=="1-0-1":
-                self._client.containers.run(image=image, command=command,
-                                            volumes=volume,
-                                            detach=True,
-                                            cpuset_cpus="%s" % str(j - 1),
-                                            # blkio_weight=int(0.5 + 1000 / j),
-                                            mem_limit=m_limit,
-                                            name=random_string(8),
-                                            working_dir="/test/")
-            elif k=="1-1-0":
-                self._client.containers.run(image=image, command=command,
-                                            volumes=volume,
-                                            detach=True,
-                                            cpuset_cpus="%s" % str(j - 1),
-                                            blkio_weight=int(0.5 + 1000 / j),
-                                            # mem_limit=m_limit,
-                                            name=random_string(8),
-                                            working_dir="/test/")
-            elif k=="1-1-1":
-                self._client.containers.run(image=image, command=command,
-                                            volumes=volume,
-                                            detach=True,
-                                            cpuset_cpus="%s" % str(j - 1),
-                                            blkio_weight=int(0.5 + 1000 / j),
-                                            mem_limit=m_limit,
-                                            name=random_string(8),
-                                            working_dir="/test/")
-            print(command)
-            timepre = timepost
 
-    def _ex_test(self, tools_type, rw, cmd, vol, rng, scale_test=True):
-        if scale_test:
-            for i in range(1, rng):
-                self._crt_run(tools_type, rw, i, cmd, vol)
-                while whether_wait(self._client):
-                    time.sleep(30)
-                # lockstat_stop()
-                # get_lockstat(os.path.join(self._result_directory, tools_type,
-                #                           "%s-%s-%s-lockstat" % (self._fs_type, rw, str(i))), True)
-                rm_cntrs(self._client)
-        else:
-            self._crt_run(tools_type, rw, rng, cmd, vol)
-            while whether_wait(self._client):
-                time.sleep(30)
-            lockstat_stop()
-            get_lockstat(os.path.join(self._result_directory, tools_type,
-                                      "%s-%s-%s-lockstat" % (self._fs_type, rw, str(rng))), True)
-            rm_cntrs(self._client)
+    # def _ex_test(self, cmd, vol, rng, scale_test=True):
+
 
     def start(self):
         self._pre_work()
-        tool = "fio"
-        for res_dir in self._res_dirs:
-            print(tool + 48 * "%")
-            result_directory = os.path.join(self._result_directory, res_dir)
-            volume = {result_directory: self._mnt_point}
-            os.system("mkdir  -p  %s" % result_directory)
-            rw = self._rw_mode[self._type[self._type.index(tool)]]
-            parm2 = self._default_bs
-            if tool is "iozone":
-                parm1 = "%s@-i@%s" % (rw[0], rw[1])
-                if not self._io_flag:
-                    parm1 = parm1 + "@-I"
-                cmd = "./run %s %s %s " % (tool, parm1, parm2)
-                self._ex_test(tool, iozone_rw, cmd, volume, self._max_num, self._scale_test)
-                continue
-            elif tool is "fio":
-                for rw_type in self._rw_mode[tool]:
-                    print(rw_type + 32 * "#")
-                    parm1 = "%s@-ioengine=sync" % rw_type
-                    if self._io_flag:
-                        parm1 = parm1 + "@-direct=1"
-                    cmd = "./run %s %s %s " % (tool, parm1, parm2)
-                    self._ex_test(tool, rw_type, cmd, volume, self._max_num, self._scale_test)
-            elif tool is "sysbench":
-                for rw_type in self._rw_mode[tool]:
-                    print(rw_type + 32 * "#")
-                    parm1 = "%s@--file-io-mode=sync" % rw_type
-                    if self._io_flag:
-                        parm1 = parm1 + "@--file-extra-flags=direct"
-                    fp = open(os.path.join(os.getcwd(), "image_sys/Dockerfile"), "w")
-                    fp.write("FROM %s\n" % image)
-                    fp.write("MAINTAINER yujinyu\n")
-                    fp.write("WORKDIR /test/\n")
-                    fp.write(
-                        "RUN sysbench --test=fileio --file-test-mode=%s --file-block-size=%s --file-total-size=2G prepare" % (
-                            parm1.replace("@", " "), parm2))
-                    fp.close()
-                    build_image(os.path.join(os.getcwd(), "image_sys"), image, self._client)
-                    cmd = "./run %s %s %s " % (tool, parm1, parm2)
-                    self._ex_test(tool, rw_type, cmd, volume, self._max_num, self._scale_test)
