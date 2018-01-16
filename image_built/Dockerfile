@@ -1,11 +1,18 @@
-FROM 192.168.3.51:5000/admin/ubuntu:16.04
+#FROM 192.168.3.51:5000/admin/ubuntu:16.04
+FROM 192.168.3.51:5000/admin/test:cpu-bound
 MAINTAINER yujinyu
 
-WORKDIR /usr/src/kernels/
-RUN apt install -y wget make gcc xz
-RUN wget https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.0.tar.xz
-RUN xz -d linux-4.0.tar.xz &&tar -xvf linux-4.0.tar && rm -f linux-4.0.tar
-WORKDIR /usr/src/kernels/linux-4.0/
+
+#RUN apt-get update
+#RUN apt-get install -y time
+#WORKDIR /usr/src/
+#RUN wget https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.0.tar.xz
+#RUN tar -xvf linux-4.0.tar.xz && rm -f linux-4.0.tar.xz
+
+# WORKDIR /usr/src/linux-4.0/
+COPY run.sh /
+RUN chmod +x /run.sh
+
 
 
 
