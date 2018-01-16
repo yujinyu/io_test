@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 cd /usr/src/linux-4.0/
-(time make -j $1 > /dev/null) > /mnt/$2.log
+/usr/bin/time -f "time: %E" --output=/mnt/$2.log make -j$1 > /dev/null 2>&1

@@ -4,7 +4,7 @@ import docker
 from random import Random
 from pkg.cpu import get_num_of_cpus
 
-image = "192.168.3.51:5000/admin/test:cpu-bound"
+image = "test:cpu-bound"
 m_limit = "4g"
 
 def random_string(le=6):
@@ -65,9 +65,14 @@ def mkfs_mnt(dev, fs, mntpoint):
 
 def whether_wait(clt):
     cntrs_list = clt.containers.list()
-    if len(cntrs_list) <= 0:
-        return False
-    return True
+    if len(cntrs_list) > 0:
+        cntr = clt.containers.get("cpu-target")
+        if cntr.status != "running":
+            for cid in cntrs_list:
+                cid.stop()
+            return False
+        return True
+    return False
 
 
 def rm_cntrs(clt):
@@ -90,36 +95,53 @@ class Test:
 
 
     def start(self):
-        # self._pre_work()
+        self._pre_work()
         result_directory = os.path.join(self._result_directory, "cpu")
         volume = {result_directory: self._mnt_point}
         client = docker.from_env()
-
+# -------------- sets-------------------sets------------------------
+        rm_cntrs(client)
+        # sets 1(10)+0
         client.containers.run(image=image,
-                              command="./run.sh 10 10cpu-sets-1",
+                              command="./run.sh 10 10cpu-sets-0",
                               detach=True, volumes=volume,
                               cpuset_cpus="0-9",
                               mem_limit=m_limit,
-                              name=random_string(8),
+                              name="cpu-target",
                               working_dir="/")
         while whether_wait(client):
             time.sleep(45)
-
+        rm_cntrs(client)
+        # set 1(10)+1(4)
         client.containers.run(image=image,
-                              command="./run.sh 10 10cpu-shares-1",
+                              command="./run.sh 4 4cpu-sets-1",
                               detach=True, volumes=volume,
-                              cpu_shares=10,
+                              cpuset_cpus="12-15",
                               mem_limit=m_limit,
                               name=random_string(8),
                               working_dir="/")
-
+        client.containers.run(image=image,
+                              command="./run.sh 10 10cpu-sets-1",
+                              detach=True,volumes=volume,
+                              cpuset_cpus="0-9",
+                              mem_limit=m_limit,
+                              name="cpu-target",
+                              working_dir="/")
         while whether_wait(client):
             time.sleep(45)
-
+        rm_cntrs(client)
+        # set 1(10)+2(4)
         client.containers.run(image=image,
-                              command="./run.sh 4 4cpu-sets",
+                              command="./run.sh 2 2cpu-sets-1",
                               detach=True, volumes=volume,
-                              cpuset_cpus="12-15",
+                              cpuset_cpus="12,13",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 2 2cpu-sets-2",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="14,15",
                               mem_limit=m_limit,
                               name=random_string(8),
                               working_dir="/")
@@ -128,14 +150,126 @@ class Test:
                               detach=True,volumes=volume,
                               cpuset_cpus="0-9",
                               mem_limit=m_limit,
-                              name=random_string(8),
+                              name="cpu-target",
                               working_dir="/")
         while whether_wait(client):
             time.sleep(45)
+        rm_cntrs(client)
+        # set 1(10)+3(4)
         client.containers.run(image=image,
-                              command="./run.sh 4 4cpu-sets",
+                              command="./run.sh 2 3cpu-sets-1",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="12,13",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 1 3cpu-sets-2",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="14",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 1 3cpu-sets-3",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="15",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 10 10cpu-sets-3",
+                              detach=True,volumes=volume,
+                              cpuset_cpus="0-9",
+                              mem_limit=m_limit,
+                              name="cpu-target",
+                              working_dir="/")
+        while whether_wait(client):
+            time.sleep(45)
+        rm_cntrs(client)
+        # set 1(10)+4(4)
+        client.containers.run(image=image,
+                              command="./run.sh 1 1cpu-sets-1",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="12",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 1 1cpu-sets-2",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="13",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 1 1cpu-sets-3",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="14",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 1 1cpu-sets-4",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="15",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 10 10cpu-sets-4",
+                              detach=True,volumes=volume,
+                              cpuset_cpus="0-9",
+                              mem_limit=m_limit,
+                              name="cpu-target",
+                              working_dir="/")
+        while whether_wait(client):
+            time.sleep(45)
+        rm_cntrs(client)
+#-------------- share-------------------share------------------------
+        #1(10)+0
+        client.containers.run(image=image,
+                              command="./run.sh 10 10cpu-shares-0",
+                              detach=True, volumes=volume,
+                              cpu_shares=10,
+                              mem_limit=m_limit,
+                              name="cpu-target",
+                              working_dir="/")
+
+        while whether_wait(client):
+            time.sleep(45)
+        rm_cntrs(client)
+        #1(10)+1(4)
+        client.containers.run(image=image,
+                              command="./run.sh 4 4cpu-sets-1",
                               detach=True, volumes=volume,
                               cpuset_cpus="12-15",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 10 10cpu-shares-1",
+                              detach=True, volumes=volume,
+                              cpu_shares=10,
+                              mem_limit=m_limit,
+                              name="cpu-target",
+                              working_dir="/")
+
+        while whether_wait(client):
+            time.sleep(45)
+        rm_cntrs(client)
+        # 1(10)+2(4)
+        client.containers.run(image=image,
+                              command="./run.sh 2 2cpu-sets-1",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="12,15",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 2 2cpu-sets-2",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="13,14",
                               mem_limit=m_limit,
                               name=random_string(8),
                               working_dir="/")
@@ -144,8 +278,76 @@ class Test:
                               detach=True, volumes=volume,
                               cpu_shares=10,
                               mem_limit=m_limit,
-                              name=random_string(8),
+                              name="cpu-target",
                               working_dir="/")
-
         while whether_wait(client):
             time.sleep(45)
+        rm_cntrs(client)
+        # 1(10)+3(4)
+        client.containers.run(image=image,
+                              command="./run.sh 1 3cpu-sets-1",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="15",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 2 3cpu-sets-2",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="13,14",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 1 3cpu-sets-3",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="15",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 10 10cpu-shares-3",
+                              detach=True, volumes=volume,
+                              cpu_shares=10,
+                              mem_limit=m_limit,
+                              name="cpu-target",
+                              working_dir="/")
+        while whether_wait(client):
+            time.sleep(45)
+        rm_cntrs(client)
+        # 1(10)+4(4)
+        client.containers.run(image=image,
+                              command="./run.sh 1 1cpu-sets-1",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="15",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 1 1cpu-sets-2",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="13",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 1 1cpu-sets-3",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="14",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 1 1cpu-sets-4",
+                              detach=True, volumes=volume,
+                              cpuset_cpus="15",
+                              mem_limit=m_limit,
+                              name=random_string(8),
+                              working_dir="/")
+        client.containers.run(image=image,
+                              command="./run.sh 10 10cpu-shares-4",
+                              detach=True, volumes=volume,
+                              cpu_shares=10,
+                              mem_limit=m_limit,
+                              name="cpu-target",
+                              working_dir="/")
