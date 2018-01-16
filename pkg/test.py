@@ -351,3 +351,6 @@ class Test:
                               mem_limit=m_limit,
                               name="cpu-target",
                               working_dir="/")
+        while whether_wait(client):
+            time.sleep(45)
+        rm_cntrs(client)
