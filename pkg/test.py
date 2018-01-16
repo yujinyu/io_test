@@ -4,7 +4,7 @@ import docker
 from random import Random
 from pkg.cpu import get_num_of_cpus
 
-image = "test:cpu-bound"
+image = "192.168.3.51:5000/admin/test:cpu-bound"
 m_limit = "4g"
 
 def random_string(le=6):
