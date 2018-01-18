@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-cd /usr/src/linux-4.0/
-/usr/bin/time -f "time: %E" --output=/mnt/$2.log make -j$1 > /dev/null 2>&1
+
+fio -filename=/test/file -rw=$1 -bs=$2 -size=32G -runtime=180 -thread -name=mytest > /mnt/$3
