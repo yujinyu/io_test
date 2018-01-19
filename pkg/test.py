@@ -6,7 +6,7 @@ from pkg.cpu import get_num_of_cpus
 
 image = "test:disk-bound"
 cntr_name = "blkio-target"
-rw = "read"
+rw = "write"
 bs = "4k"
 m_limit = "4g"
 
@@ -116,8 +116,14 @@ class Test:
     def start(self):
         self._pre_work()
         self._remove()
+        self._create(command="./run.sh %s %s %s-%s-%s-res" % (rw, bs, "1", rw, bs),
+                     cpu_shares=8,
+                     blkio_weight=1000,
+                     name=cntr_name)
+        self._run()
+        self._waiting_and_rm()
 
-        for i in range(0, 5):
+        for i in range(0, 1):
             for j in range(0, i):
                 self._create(command="./run.sh %s %s res-%s-%s-%s-%s" % (rw, bs, str(i), str(j + 1), rw, bs),
                              cpu_shares=2,
