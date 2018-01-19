@@ -70,7 +70,7 @@ class Test:
         self._device = storage_device
         self._fs_type = fs_type
         self._mnt_point = mount_point
-        self._result_directory = os.path.join(result_dir, "cpu-%s"%time.strftime("%y%m%d%H%M", time.localtime()) )
+        self._result_directory = os.path.join(result_dir, "cpu-%s"%time.strftime("%y%m%d%H%M", time.localtime()))
         self._scale_test = scale_test
         self._max_num = get_num_of_cpus() + 1
         self._volume = {self._result_directory: self._mnt_point}
@@ -142,7 +142,7 @@ class Test:
                 self._create_cpuset(command="./run.sh 2 interf-sets-%s" % (str(j)),
                                     cpuset_cpus="%s,%s" % (str(2 * j), str(2 * j + 1)),
                                     name=random_string(8))
-            self._create_cpuset(command="./run.sh 8 8cpuset-cpu-%s" % str(i),
+            self._create_cpuset(command="./run.sh 8 8cpuset-cpus-%s" % str(i),
                                 cpuset_cpus="8-15",
                                 name=cntr_name)
             self._run()
