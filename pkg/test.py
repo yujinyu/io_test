@@ -29,46 +29,8 @@ def build_image(path2dockerfile, client=docker.from_env()):
         exit(-1)
 
 
-def docker_svc_stop():
-    if 0 == os.system("systemctl stop docker.service"):
-        os.system("umount -lf $(cat /proc/mounts | grep docker | awk '{print $2}')")
-        os.system("rm -rf /var/lib/docker/*")
-        return 0
-    else:
-        print("Failed to stop docker daemon")
-        return -1
-
-
-def mkfs_mnt(dev, fs, mntpoint):
-    if fs in ["ext4", "ext3", "ext2"]:
-        os.system("echo \"y\" | mkfs.%s %s" % (fs, dev))
-        os.system("mount -t %s %s %s" % (fs, dev, mntpoint))
-    elif fs in ["f2fs", "xfs", "btrfs"]:
-        os.system("mkfs.%s -f %s" % (fs, dev))
-        os.system("mount -t %s %s %s" % (fs, dev, mntpoint))
-    elif fs == "zfs":
-        os.system("zpool create -f zfspool %s" % dev)
-        os.system("zfs create -o mountpoint=%s zfspool/docker" % mntpoint)
-    elif fs == "ext4nj":
-        os.system("echo \"y\" | mkfs.ext4  %s" % dev)
-        os.system("tune2fs -O ^has_journal %s" % dev)
-        os.system("mount -t %s %s %s" % ("ext4", dev, mntpoint))
-    else:
-        print("unsupported fs %s" % fs)
-        exit(-1)
-    tfs = os.popen("df -T |grep %s |awk '{print$2}'" % mntpoint).read()
-    if fs != "ext4nj":
-        if str(tfs).replace('\n', '') != fs:
-            exit(1)
-    else:
-        if str(tfs).replace('\n', '') != "ext4":
-            exit(1)
-
-
 class Test:
-    def __init__(self, storage_device, fs_type, mount_point, result_dir, scale_test, direct_io=True):
-        self._device = storage_device
-        self._fs_type = fs_type
+    def __init__(self, mount_point, result_dir, scale_test, direct_io=True):
         self._mnt_point = mount_point
         self._result_directory = os.path.join(result_dir, "cpu-%s"%time.strftime("%y%m%d%H%M", time.localtime()))
         self._scale_test = scale_test
